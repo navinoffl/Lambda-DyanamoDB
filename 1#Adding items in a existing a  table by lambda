@@ -1,4 +1,4 @@
-1#Adding items ia Dyanmodb table by lambda 
+#1Adding items ia Dyanmodb table by lambda 
 
 import json
 import boto3
