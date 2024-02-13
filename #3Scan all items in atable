@@ -1,0 +1,8 @@
+import boto3
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('customertable')
+
+response = table.scan()
+items = response['Items']
+for i in items:
+    print(i['title'])
