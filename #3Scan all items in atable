@@ -5,4 +5,4 @@ table = dynamodb.Table('customertable')
 response = table.scan()
 items = response['Items']
 for i in items:
-    print(i['title'])
+    print(i['title']) #title is partition key
