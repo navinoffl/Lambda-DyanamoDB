@@ -2,6 +2,7 @@
 
 #partition key and sort key mandatory
 #attributes are optional
+#if new values given it shouldnt create
 
 import boto3
 import json
@@ -14,27 +15,50 @@ TABLE_NAME = "ANIBLOCK_APIs"
 
 def lambda_handler(event, context):
     # Extract parameters from the event
-    spam_number = event.get('spamNumber')  # Use the exact key from the event payload
+    span_number = event.get('spamNumber')
     ani = event.get('ani')
-    action_by = event.get('actionBy')      # Use the exact key from the event payload
-    action_date = event.get('actionDate')  # Use the exact key from the event payload
+    action_by = event.get('actionBy')
+    action_date = event.get('actionDate')
     
-    print(f"Received values - spam_number: {spam_number}, ani: {ani}, action_by: {action_by}, action_date: {action_date}")
-    
-    # Check if required parameters are present
-    if not spam_number or not ani:
+    print(f"Received values - spam_number: {span_number}, ani: {ani}, action_by: {action_by}, action_date: {action_date}")
+
+    # Check for required parameters
+    if not span_number or not ani:
         return {
             'statusCode': 400,
             'body': json.dumps('Missing required parameters: spamNumber and/or ani')
         }
-    
+
+    # Perform a get_item operation to check if the item exists
+    try:
+        get_response = dynamodb.get_item(
+            TableName=TABLE_NAME,
+            Key={
+                'spanNumber': {'S': span_number},
+                'ani': {'S': ani}
+            }
+        )
+        
+        if 'Item' not in get_response:
+            return {
+                'statusCode': 404,
+                'body': json.dumps('Item not found')
+            }
+
+    except Exception as e:
+        print(f"Error getting item: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f'Error getting item: {str(e)}')
+        }
+
     # Build the update expression dynamically
     update_expression_parts = []
     expression_attribute_values = {}
 
     if action_date:
         update_expression_parts.append('actionDate = :actionDate')
-        expression_attribute_values[':actionDate'] = {'N': action_date}
+        expression_attribute_values[':actionDate'] = {'N': str(action_date)}
     
     if action_by:
         update_expression_parts.append('actionBy = :actionBy')
@@ -53,8 +77,8 @@ def lambda_handler(event, context):
         response = dynamodb.update_item(
             TableName=TABLE_NAME,
             Key={
-                'spanNumber': {'S': spam_number},  # Partition Key
-                'ani': {'S': ani}                 # Sort Key
+                'spanNumber': {'S': span_number},
+                'ani': {'S': ani}
             },
             UpdateExpression=update_expression,
             ExpressionAttributeValues=expression_attribute_values,
