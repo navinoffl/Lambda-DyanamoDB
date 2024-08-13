@@ -1,0 +1,77 @@
+#5 put method (update.item)
+
+#partition key and sort key mandatory
+#attributes are optional
+
+import boto3
+import json
+
+# Initialize a DynamoDB client
+dynamodb = boto3.client('dynamodb')
+
+# Define the table name as a variable
+TABLE_NAME = "ANIBLOCK_APIs"
+
+def lambda_handler(event, context):
+    # Extract parameters from the event
+    spam_number = event.get('spamNumber')  # Use the exact key from the event payload
+    ani = event.get('ani')
+    action_by = event.get('actionBy')      # Use the exact key from the event payload
+    action_date = event.get('actionDate')  # Use the exact key from the event payload
+    
+    print(f"Received values - spam_number: {spam_number}, ani: {ani}, action_by: {action_by}, action_date: {action_date}")
+    
+    # Check if required parameters are present
+    if not spam_number or not ani:
+        return {
+            'statusCode': 400,
+            'body': json.dumps('Missing required parameters: spamNumber and/or ani')
+        }
+    
+    # Build the update expression dynamically
+    update_expression_parts = []
+    expression_attribute_values = {}
+
+    if action_date:
+        update_expression_parts.append('actionDate = :actionDate')
+        expression_attribute_values[':actionDate'] = {'N': action_date}
+    
+    if action_by:
+        update_expression_parts.append('actionBy = :actionBy')
+        expression_attribute_values[':actionBy'] = {'S': action_by}
+    
+    if not update_expression_parts:
+        return {
+            'statusCode': 400,
+            'body': json.dumps('Nothing to update. Please provide at least one attribute to update.')
+        }
+    
+    update_expression = 'SET ' + ', '.join(update_expression_parts)
+
+    try:
+        # Update item in DynamoDB
+        response = dynamodb.update_item(
+            TableName=TABLE_NAME,
+            Key={
+                'spanNumber': {'S': spam_number},  # Partition Key
+                'ani': {'S': ani}                 # Sort Key
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ReturnValues='ALL_NEW'  # Return the new values of all updated attributes
+        )
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'message': 'Item updated successfully',
+                'updatedAttributes': response.get('Attributes')
+            })
+        }
+    
+    except Exception as e:
+        print(f"Error updating item: {str(e)}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f'Error updating item: {str(e)}')
+        }
